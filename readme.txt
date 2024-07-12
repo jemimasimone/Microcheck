@@ -1,4 +1,4 @@
-Notes:
+Notes on main.py:
 
 python version 3 or higher should be installed (3.12 yung akin)
 
