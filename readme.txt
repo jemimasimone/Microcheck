@@ -16,3 +16,7 @@ use yolo cli to test if installation finished properly
 
 To run main.py, on terminal (in directory of Microcheck):
 - python3 -m main
+
+For github commit:
+- wag isama venv folder & runs folder & pycache folder
+- wag isama yolov8l.pt
