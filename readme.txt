@@ -21,3 +21,18 @@ To run main.py, on terminal (in directory of Microcheck):
 For github commit:
 - wag isama venv folder & runs folder & pycache folder
 - wag isama yolov8l.pt
+
+
+To do:
+[] filter function - detects only bead || fibre || fragment
+
+(pag ilalagay na custom YOLOv8 model with DCN & attention mechanism)
+[] import model, call model
+[] fix detection dictionary
+[] fix detection labels according to class_names of dataset
+[] fix filter detection
+
+(pag ilalagay na model + supervision sa GUI)
+[] fix break function when esc is pressed
+[] zoom in and zoom out of camera
+[] get filter value of button

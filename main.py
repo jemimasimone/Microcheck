@@ -7,13 +7,23 @@ import argparse
 from ultralytics import YOLO
 # for annotation, visualization (bounding boxes), filtering
 import supervision as sv
+# for arrays and pixel location in defining polygon zones
+import numpy as np
+
+# Define a polygon zone in the frame
+ZONE_POLYGON = np.array([
+    # [x-axis, y-axis]
+    [0,0], # Top-left corner of the rectangle
+    [1.5,0],  # Top-right corner of the rectangle
+    [1.5,2], # Bottom-right corner of the rectangle
+    [0,2] # Bottom-left corner of the rectangle
+])
 
 # for camera resolution
 def parse_arguments() -> argparse.Namespace:
-    # print("Parser working")
     parser = argparse.ArgumentParser(description = "YOLOv8 live")
     parser.add_argument("--webcam-resolution",
-                        default=[1280,720],
+                        default=[1280,720], # [width, height]
                         nargs=2,
                         type=int
     )
@@ -22,8 +32,6 @@ def parse_arguments() -> argparse.Namespace:
 
 # main function
 def main():
-    # print("Hello! Main is working")
-
     # calls def for camera resolution, sets value to 
     args = parse_arguments()
     frame_width, frame_height = args.webcam_resolution
@@ -42,14 +50,28 @@ def main():
     #label feature
     label_annotator = sv.LabelAnnotator(text_thickness=2, text_scale=1)
 
+    # Define the polygon zone and annotator
+    zone_polygon = (ZONE_POLYGON * np.array(args.webcam_resolution)).astype(int)
+    zone = sv.PolygonZone(polygon=zone_polygon)
+    zone_annotator = sv.PolygonZoneAnnotator(
+        zone=zone,
+        color=sv.Color.WHITE,
+        thickness=2,
+        text_thickness=4,
+        text_scale=2
+        )
+
     while True:
         ret, frame = cap.read()
 
         # gets result from trained model
-        result = model(frame)[0]
+        result = model(frame, agnostic_nms=True)[0]
 
         # detections/annotations from model results
         detections = sv.Detections.from_ultralytics(result)
+
+        # filter detection
+        detections = detections[detections.class_id != 0] # model doesn't detect people (class_id = 0)
 
         # for detection dictionary
         print(f"Number of detections: {len(detections)}")  # Print the number of detections
@@ -58,9 +80,9 @@ def main():
 
         # get class labels, loop for each detection
         labels = []
-        for (box, score, class_name, _), *_ in detections:
-            # get class name
-            class_name = detection[-1]['class_name']  # Access class_name from the last element of detection dictionary 
+        for detection in detections:
+            box, _, score, class_id, _, additional_info = detection
+            class_name = additional_info['class_name']  # Access class_name from additional_info dictionary 
             # format label
             label_text = f"{class_name} - {score:0.2f}"  # Confidence rounded to 2 decimal places
             labels.append(label_text)  # Append the formatted label to the list
@@ -70,11 +92,12 @@ def main():
         # frame with labels (final frame)
         frame = label_annotator.annotate(scene=annotated_frame, detections=detections, labels=labels)
         
+        # annotate frame with zones
+        zone.trigger(detections=detections)
+        frame = zone_annotator.annotate(scene=frame)
+
         #display
         cv2.imshow("Microcheck", frame)
-
-        # print(frame.shape)
-        # break
 
         #closes program if ESC (ASCII 27) is pressed
         if (cv2.waitKey(30) == 27):
