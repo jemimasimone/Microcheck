@@ -5,8 +5,8 @@ import argparse
 
 import os
 
-input_dir = './dataset2/masks'
-output_dir = './dataset2/labels'
+input_dir = './dataset3/masks'
+output_dir = './dataset3/labels'
 
 for j in os.listdir(input_dir):
     image_path = os.path.join(input_dir, j)
