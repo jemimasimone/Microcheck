@@ -15,8 +15,8 @@ on terminal (in directory of Microcheck folder)
 use yolo cli to test if installation finished properly
 - yolo detect predict model=yolov8l.pt source=0 show=true
 
-To run main.py, on terminal (in directory of Microcheck):
-- python3 -m main
+To run microcheck.py, on terminal (in directory of Microcheck, after source venv/bin/activate OR cd venv/Scripts/activate):
+- python3 microcheck.py
 
 For github commit:
 - wag isama venv folder & runs folder & pycache folder
@@ -33,6 +33,6 @@ To do:
 [] fix filter detection
 
 (pag ilalagay na model + supervision sa GUI)
-[] fix break function when esc is pressed
+[/] fix break function when esc is pressed
 [] zoom in and zoom out of camera
 [] get filter value of button
