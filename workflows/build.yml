@@ -1,0 +1,31 @@
+name: Build Windows Executable
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        pip install pyinstaller
+        pip install -r requirements.txt
+
+    - name: Build executable
+      run: |
+        pyinstaller --onefile --windowed --add-data "assets;assets" --add-data "yolo_microplastic.pt;." --add-data "Users/jemi/CSRP/Microcheck/venv/lib/python3.10/site-packages/ultralytics/cfg/default.yaml;ultralytics/cfg" microcheck.py
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: microcheck
+        path: dist/microcheck.exe
