@@ -1,4 +1,6 @@
+import sys
 import cv2
+import os
 import numpy as np
 from PIL import Image, ImageTk
 from pathlib import Path
@@ -10,11 +12,15 @@ import datetime
 
 # GUI ----------------
 
-OUTPUT_PATH = Path(__file__).parent
-ASSETS_PATH = OUTPUT_PATH / Path(r"assets/")
+if getattr(sys, 'frozen', False):
+    BASE_PATH = sys._MEIPASS
+else:
+    BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 
 def relative_to_assets(path: str) -> Path:
-    return ASSETS_PATH / Path(path)
+    return Path(BASE_PATH) / 'assets' / path
+
+model_path = Path(BASE_PATH) / 'yolo_microplastic.pt'
 
 def center_window(window, width, height):
     screen_width = window.winfo_screenwidth()
@@ -122,7 +128,7 @@ def detect():
     global is_running, model
     is_running = True
     if model is None:
-        model = YOLO("yolo_microplastic.pt")
+        model = YOLO(model_path)
 
 def stop():
     global is_running, model
