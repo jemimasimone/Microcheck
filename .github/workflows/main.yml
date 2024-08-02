@@ -24,7 +24,7 @@ jobs:
 
     - name: Build executable
       run: |
-        pyinstaller --onefile --windowed --add-data "assets;assets" --add-data "yolo_microplastic.pt;." --add-data "venv/Lib/site-packages/ultralytics/cfg/default.yaml;ultralytics/cfg" microcheck.py
+        pyinstaller --onefile --windowed --add-data "assets;assets" --add-data "yolo_microplastic.pt;." microcheck.py
 
     - name: Upload artifact
       uses: actions/upload-artifact@v3
