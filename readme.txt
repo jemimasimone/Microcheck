@@ -11,6 +11,8 @@ on terminal (in directory of Microcheck folder)
   (packages like numpy, opencv, torch, pandas, etc. should start downloading after the command)
 - pip install supervision
   (for bounding boxes)
+- pip install pillow
+- pip install sort
 
 use yolo cli to test if installation finished properly
 - yolo detect predict model=yolov8l.pt source=0 show=true
