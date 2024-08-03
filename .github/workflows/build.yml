@@ -26,12 +26,12 @@ jobs:
       id: find_yaml
       run: |
         echo "Finding ultralytics/cfg/default.yaml"
-        YAML_PATH=$(python -c "import os; import ultralytics; import glob; cfg_path = glob.glob(os.path.join(ultralytics.__path__[0], 'cfg', 'default.yaml'))[0]; print(cfg_path)")
+        YAML_PATH=$(python -c "import os; import glob; import ultralytics; cfg_path = glob.glob(os.path.join(ultralytics.__path__[0], 'cfg', 'default.yaml'))[0]; print(cfg_path)")
         echo "YAML_PATH=$YAML_PATH" >> $GITHUB_ENV
 
     - name: Build executable
       run: |
-        pyinstaller --onefile --windowed --add-data "assets;assets" --add-data "yolo_microplastic.pt;." --add-data "$YAML_PATH;ultralytics/cfg" microcheck.py
+        pyinstaller --onefile --windowed --add-data "assets;assets" --add-data "yolo_microplastic.pt;." --add-data "$env:YAML_PATH;ultralytics/cfg" microcheck.py
 
     - name: Upload artifact
       uses: actions/upload-artifact@v3
