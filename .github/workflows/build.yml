@@ -26,8 +26,8 @@ jobs:
       id: find_yaml
       run: |
         echo "Finding ultralytics/cfg/default.yaml"
-        YAML_PATH=$(python -c "import os; import glob; import ultralytics; cfg_path = glob.glob(os.path.join(ultralytics.__path__[0], 'cfg', 'default.yaml'))[0]; print(cfg_path)")
-        echo "YAML_PATH=$YAML_PATH" >> $GITHUB_ENV
+        $yaml_path = python -c "import os; import glob; import ultralytics; cfg_path = glob.glob(os.path.join(ultralytics.__path__[0], 'cfg', 'default.yaml'))[0]; print(cfg_path)"
+        echo "YAML_PATH=$yaml_path" >> $env:GITHUB_ENV
 
     - name: Build executable
       run: |
