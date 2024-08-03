@@ -21,6 +21,7 @@ jobs:
         pip install ultralytics
         pip install supervision
         pip install pillow
+        pip install opencv-python
 
     - name: Locate default.yaml
       id: find_yaml
