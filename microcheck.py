@@ -6,7 +6,7 @@ from PIL import Image, ImageTk
 from pathlib import Path
 from tkinter import Tk, Canvas, Button, PhotoImage, filedialog
 import tkinter.font as tkFont
-from ultralytics import YOLO
+# from ultralytics import YOLO
 import supervision as sv
 import datetime
 
@@ -20,7 +20,7 @@ else:
 def relative_to_assets(path: str) -> Path:
     return Path(BASE_PATH) / 'assets' / path
 
-model_path = Path(BASE_PATH) / 'yolo_microplastic.pt'
+# model_path = Path(BASE_PATH) / 'yolo_microplastic.pt'
 
 def center_window(window, width, height):
     screen_width = window.winfo_screenwidth()
@@ -120,20 +120,20 @@ box_annotator = sv.BoundingBoxAnnotator(thickness=2)
 label_annotator = sv.LabelAnnotator(text_thickness=1, text_scale=0.5)
 
 # MODEL ---------
-is_running = False
-model = None
-current_frame = None
+# is_running = False
+# model = None
+# current_frame = None
 
-def detect():
-    global is_running, model
-    is_running = True
-    if model is None:
-        model = YOLO(model_path)
+# def detect():
+#     global is_running, model
+#     is_running = True
+#     if model is None:
+#         model = YOLO(model_path)
 
-def stop():
-    global is_running, model
-    is_running = False
-    model = None
+# def stop():
+#     global is_running, model
+#     is_running = False
+#     model = None
 
 def save_frame():
     global current_frame
@@ -163,7 +163,7 @@ button_3 = Button(
 button_4 = Button(
     text="Start",
     compound="center",
-    command=detect,
+    # command=detect,
     relief="raised",
     fg="#454545",
     font=("IstokWeb Bold", 15 * -1),
@@ -177,7 +177,7 @@ button_4 = Button(
 button_5 = Button(
     text="Stop",
     compound="center",
-    command=stop,
+    # command=stop,
     relief="raised",
     fg="#454545",
     font=("IstokWeb Bold", 15 * -1),
