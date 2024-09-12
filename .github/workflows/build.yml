@@ -18,21 +18,25 @@ jobs:
     - name: Install dependencies
       run: |
         pip install pyinstaller
-        pip install ultralytics
+        # pip install ultralytics
         pip install supervision
         pip install pillow
         pip install opencv-python
 
-    - name: Locate default.yaml
-      id: find_yaml
-      run: |
-        echo "Finding ultralytics/cfg/default.yaml"
-        $yaml_path = python -c "import os; import glob; import ultralytics; cfg_path = glob.glob(os.path.join(ultralytics.__path__[0], 'cfg', 'default.yaml'))[0]; print(cfg_path)"
-        echo "YAML_PATH=$yaml_path" >> $env:GITHUB_ENV
+    # - name: Locate default.yaml
+    #   id: find_yaml
+    #   run: |
+    #     echo "Finding ultralytics/cfg/default.yaml"
+    #     $yaml_path = python -c "import os; import glob; import ultralytics; cfg_path = glob.glob(os.path.join(ultralytics.__path__[0], 'cfg', 'default.yaml'))[0]; print(cfg_path)"
+    #     echo "YAML_PATH=$yaml_path" >> $env:GITHUB_ENV
+
+    # - name: Build executable
+    #   run: |
+    #     pyinstaller --onefile --windowed --add-data "assets;assets" --add-data "yolo_microplastic.pt;." --add-data "$env:YAML_PATH;ultralytics/cfg" microcheck.py
 
     - name: Build executable
       run: |
-        pyinstaller --onefile --windowed --add-data "assets;assets" --add-data "yolo_microplastic.pt;." --add-data "$env:YAML_PATH;ultralytics/cfg" microcheck.py
+         pyinstaller --onefile --windowed --add-data "assets;assets" microcheck.py
 
     - name: Upload artifact
       uses: actions/upload-artifact@v3
