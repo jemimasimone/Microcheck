@@ -2,3 +2,8 @@ to install:
 pathlib
 Tkinter
 PIL
+pyinstaller
+pillow
+
+for downloading as a windows app:
+pyinstaller --onefile --windowed --add-data "assets;assets" microcheck_app.py
