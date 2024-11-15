@@ -5,7 +5,10 @@ a = Analysis(
     ['microcheck_app.py'],
     pathex=[],
     binaries=[],
-    datas=[('assets', 'assets')],
+    datas=[
+        ('assets', 'assets'),
+        ('unet_tuning_epoch_30.pth', '.')
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

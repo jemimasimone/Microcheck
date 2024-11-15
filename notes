@@ -1,9 +1,15 @@
 to install:
 pathlib
 Tkinter
-PIL
 pyinstaller
-pillow
+pil/pillow
+torch
+unet
 
 for downloading as a windows app:
-pyinstaller --onefile --windowed --add-data "assets;assets" microcheck_app.py
+pyinstaller --onefile microcheck_app.py
+
+#bug tuwing click
+print conf level
+gradiant ng cmap
+conf level bar

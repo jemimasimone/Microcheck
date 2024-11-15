@@ -1,14 +1,33 @@
 from pathlib import Path
 from tkinter import Tk, Canvas, Button, Frame, BOTH, filedialog, messagebox
 from PIL import Image, ImageTk
+import numpy as np
+import supervision as sv
+import torch
+import torchvision.transforms as transforms
+from Pytorch_UNet.unet import UNet
+import sys
 import os
+import datetime
+import cv2
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+from matplotlib.colors import ListedColormap
+from matplotlib.colors import LinearSegmentedColormap
 
+# ----- PATH FILES FOR ASSETS
 OUTPUT_PATH = Path(__file__).parent
 ASSETS_PATH = OUTPUT_PATH / Path(r"assets")
 
 def relative_to_assets(path: str) -> Path:
     return ASSETS_PATH / Path(path)
 
+# ----- CALL YOUR MODEL
+model = UNet(n_channels=3, n_classes=1)
+model.load_state_dict(torch.load("unet_tuning_epoch_30.pth", map_location=torch.device('cpu')))
+model.eval()
+
+# ----- RESPONSIVE IMAGES DEPENDING ON CANVAS
 def resize_images(new_width):
     aspect_ratio_1 = original_button_image_1.height / original_button_image_1.width
     aspect_ratio_2 = original_button_image_2.height / original_button_image_2.width
@@ -21,6 +40,7 @@ def resize_images(new_width):
     
     return ImageTk.PhotoImage(resized_image_1), ImageTk.PhotoImage(resized_image_2)
 
+# ----- RESIZE IMAGES UPOAN UPLOAD
 def on_resize(event):
     if event.widget == window:
         # Button images
@@ -34,7 +54,7 @@ def on_resize(event):
         
         # Redraw uploaded image
         try:
-            if not main_content.uploaded_images:
+            if not any(main_content.uploaded_images):
                 return  # No image to redraw
             
             # Get the uploaded image
@@ -73,8 +93,8 @@ def on_resize(event):
             # No images uploaded yet
             pass
 
+# ----- UPLOAD IMAGES
 def upload_images():
-    # Open file dialog to select a single image
     file_path = filedialog.askopenfilename(
         title="Select Image",
         filetypes=[("Image Files", "*.png;*.jpg;*.jpeg;*.gif;*.bmp")],
@@ -99,35 +119,77 @@ def upload_images():
     max_height = canvas_height - 2 * margin
     
     try:
-        # Open the image using PIL
-        img = Image.open(file_path)
-        
-        # Resize the image while maintaining aspect ratio
-        img.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
-        
-        # Convert the image to PhotoImage
-        photo = ImageTk.PhotoImage(img)
-        
+
         # Calculate position (centered)
         x_position = canvas_width // 2
         y_position = canvas_height // 2
+
+        # Open the image using PIL
+        img = Image.open(file_path)
+        image_filename = os.path.splitext(os.path.basename(file_path))[0]
+        img.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
+
+
+        # ----- PROCESS FOR U-NET
+        preprocess = transforms.Compose([
+            transforms.Resize((700, 700)),
+            transforms.ToTensor(),
+            # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # If your model was trained with this normalization
+        ])
         
-        # Add the image to the canvas
-        main_content.create_image(x_position, y_position, image=photo)
+        img_tensor = preprocess(img).unsqueeze(0)  # Add batch dimension
         
-        # Keep a reference to prevent garbage collection
-        main_content.uploaded_images = [(img, photo)]
-    
+        # Run the image through the model to get the predicted mask
+        with torch.no_grad():
+            outputs = model(img_tensor)
+        
+        # Apply sigmoid to get confidence levels as probabilities
+        confidence_levels = torch.sigmoid(outputs)
+
+        confidence_map = confidence_levels.cpu().numpy().squeeze()
+        cmap = cm.get_cmap('viridis')
+        colored = cmap(confidence_map)
+
+        mean_confidence_levels = confidence_levels.mean(dim=[1, 2, 3]).cpu().numpy()
+
+        for i, mean_confidence in enumerate(mean_confidence_levels):
+            percentage_confidence = mean_confidence * 100
+            annotation_text = f'Mean Confidence Level: {percentage_confidence:.2f}%'
+
+        # Create a figure and axis
+        fig, ax = plt.subplots()
+
+        # Display the image with the colorbar
+        im = ax.imshow(colored)
+        cbar = ax.figure.colorbar(im, ax=ax)
+
+        # Set the title
+        ax.set_title(f'Confidence Map of Image {image_filename}\n{annotation_text}')
+
+        # Convert the Matplotlib figure to a PIL Image
+        plt.savefig('temp.png')
+        conf_pil = Image.open('temp.png')
+        plt.close()
+
+        # Convert the PIL Image to a Tkinter PhotoImage
+        conf_tk = ImageTk.PhotoImage(conf_pil)
+
+        main_content.create_image(x_position, y_position, image=conf_tk)
+        main_content.uploaded_images = [(conf_pil, conf_tk)]
+
+
     except Exception as e:
         messagebox.showerror("Error", f"Failed to load image:\n{os.path.basename(file_path)}\n\n{e}")
 
+
+# ----- SAVE IMAGE OUTPUT
 def save_image():
     try:
         if not main_content.uploaded_images:
             messagebox.showwarning("No Image", "No image to save. Please upload an image first.")
             return
         
-        # Assuming only one image is uploaded
+        # Get the PIL Image object (first item in the tuple)
         img = main_content.uploaded_images[0][0]
         
         # Open a save dialog
@@ -147,17 +209,18 @@ def save_image():
             # User cancelled the save dialog
             return
         
-        # Save the image
+        # Save the PIL Image object to the specified path
         img.save(save_path)
         messagebox.showinfo("Image Saved", f"Image successfully saved to:\n{save_path}")
     
     except Exception as e:
         messagebox.showerror("Save Error", f"Failed to save image:\n{e}")
 
+# ----- TKINTER
 # Initialize main window
 window = Tk()
-window.title("Microcheck")
-window.geometry("700x550")
+window.title("MicroCheck")
+window.geometry("750x750")
 window.configure(bg="#FFFFFF")
 window.resizable(True, True)
 
@@ -201,7 +264,7 @@ button_image_1_resized, button_image_2_resized = resize_images(initial_button_wi
 button_1 = Button(
     footer_frame,
     image=button_image_1_resized,
-    text="Upload",
+    text="Scan Photo",
     compound="center",
     fg="#000000",
     font=("IstokWeb Bold", 12),
@@ -234,6 +297,30 @@ button_2 = Button(
 
 button_2.image = button_image_2_resized  
 button_2.grid(row=0, column=1, padx=20, pady=10, sticky="nsew")
+
+canvas_width = main_content.winfo_width()
+canvas_height = main_content.winfo_height()
+
+# ----- DETECTION ZONES
+zone_polygon = np.array([
+    [0, 0],
+    [canvas_width, 0],
+    [canvas_width, canvas_height],
+    [0, canvas_height]
+], dtype=int)
+
+zone = sv.PolygonZone(polygon=zone_polygon)
+zone_annotator = sv.PolygonZoneAnnotator(
+    zone=zone,
+    color=sv.Color.BLUE,
+    text_scale=0,
+    text_thickness=0,
+    thickness=0
+)
+
+# ----- BOX AND LABELS
+box_annotator = sv.BoundingBoxAnnotator(thickness=2)
+label_annotator = sv.LabelAnnotator(text_thickness=1, text_scale=0.5)
 
 # Bind the window resize event
 window.bind("<Configure>", on_resize)
