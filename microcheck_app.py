@@ -2,7 +2,6 @@ from pathlib import Path
 from tkinter import Tk, Canvas, Button, Frame, BOTH, filedialog, messagebox
 from PIL import Image, ImageTk
 import numpy as np
-import supervision as sv
 import torch
 import torchvision.transforms as transforms
 from Pytorch_UNet.unet import UNet
@@ -22,9 +21,15 @@ ASSETS_PATH = OUTPUT_PATH / Path(r"assets")
 def relative_to_assets(path: str) -> Path:
     return ASSETS_PATH / Path(path)
 
+# ----- PATH FILES FOR MODEL
+if getattr(sys, 'frozen', False):
+    model_path = Path(sys._MEIPASS) / 'unet_tuning_epoch_30.pth'
+else:
+    model_path = Path(__file__).parent / 'unet_tuning_epoch_30.pth'
+
 # ----- CALL YOUR MODEL
 model = UNet(n_channels=3, n_classes=1)
-model.load_state_dict(torch.load("unet_tuning_epoch_30.pth", map_location=torch.device('cpu')))
+model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
 model.eval()
 
 # ----- RESPONSIVE IMAGES DEPENDING ON CANVAS
@@ -72,7 +77,7 @@ def on_resize(event):
             max_width = canvas_width - 2 * margin
             max_height = canvas_height - 2 * margin
             
-            # Resize the image if necessary
+            # Resize the image
             img_resized = img.copy()
             img_resized.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
             
@@ -93,16 +98,15 @@ def on_resize(event):
             # No images uploaded yet
             pass
 
-# ----- UPLOAD IMAGES
+# ----- UPLOAD IMAGES FUNCTION
 def upload_images():
     file_path = filedialog.askopenfilename(
         title="Select Image",
         filetypes=[("Image Files", "*.png;*.jpg;*.jpeg;*.gif;*.bmp")],
-        multiple=False  # Ensure only one file can be selected
+        multiple=False
     )
     
     if not file_path:
-        # No file selected
         return
     
     # Clear any existing images on the canvas
@@ -120,7 +124,7 @@ def upload_images():
     
     try:
 
-        # Calculate position (centered)
+        # Centered image
         x_position = canvas_width // 2
         y_position = canvas_height // 2
 
@@ -132,40 +136,43 @@ def upload_images():
 
         # ----- PROCESS FOR U-NET
         preprocess = transforms.Compose([
-            transforms.Resize((700, 700)),
+            transforms.Resize((700, 700)), #Image size
             transforms.ToTensor(),
             # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # If your model was trained with this normalization
         ])
         
-        img_tensor = preprocess(img).unsqueeze(0)  # Add batch dimension
+        img_tensor = preprocess(img).unsqueeze(0)
         
-        # Run the image through the model to get the predicted mask
         with torch.no_grad():
-            outputs = model(img_tensor)
+            outputs = model(img_tensor) #Get predicted mask
         
-        # Apply sigmoid to get confidence levels as probabilities
+        #Get confidence levels as probabilities
         confidence_levels = torch.sigmoid(outputs)
 
+        #Color map -> image
         confidence_map = confidence_levels.cpu().numpy().squeeze()
         cmap = cm.get_cmap('viridis')
         colored = cmap(confidence_map)
 
+        #Mean conf formula
         mean_confidence_levels = confidence_levels.mean(dim=[1, 2, 3]).cpu().numpy()
 
         for i, mean_confidence in enumerate(mean_confidence_levels):
-            percentage_confidence = mean_confidence * 100
-            annotation_text = f'Mean Confidence Level: {percentage_confidence:.2f}%'
+            percentage_confidence = mean_confidence * 100 #Convert to percentage
+            # ----- INTERPRETATION
+            annotation_text = f'The highlighted image shows microplastic with confidence of {percentage_confidence:.2f}%'
 
-        # Create a figure and axis
+        #Figure & axis
         fig, ax = plt.subplots()
 
-        # Display the image with the colorbar
+        # colorbar
         im = ax.imshow(colored)
         cbar = ax.figure.colorbar(im, ax=ax)
 
-        # Set the title
-        ax.set_title(f'Confidence Map of Image {image_filename}\n{annotation_text}')
+        #Title
+        ax.set_title(f'Confidence Map of Image {image_filename}\n{annotation_text}') #Annotation text - interpretation
 
+        # ----- RESULTING IMAGE
         # Convert the Matplotlib figure to a PIL Image
         plt.savefig('temp.png')
         conf_pil = Image.open('temp.png')
@@ -174,6 +181,8 @@ def upload_images():
         # Convert the PIL Image to a Tkinter PhotoImage
         conf_tk = ImageTk.PhotoImage(conf_pil)
 
+
+        # ----- DISPLAY IMAGE
         main_content.create_image(x_position, y_position, image=conf_tk)
         main_content.uploaded_images = [(conf_pil, conf_tk)]
 
@@ -300,27 +309,6 @@ button_2.grid(row=0, column=1, padx=20, pady=10, sticky="nsew")
 
 canvas_width = main_content.winfo_width()
 canvas_height = main_content.winfo_height()
-
-# ----- DETECTION ZONES
-zone_polygon = np.array([
-    [0, 0],
-    [canvas_width, 0],
-    [canvas_width, canvas_height],
-    [0, canvas_height]
-], dtype=int)
-
-zone = sv.PolygonZone(polygon=zone_polygon)
-zone_annotator = sv.PolygonZoneAnnotator(
-    zone=zone,
-    color=sv.Color.BLUE,
-    text_scale=0,
-    text_thickness=0,
-    thickness=0
-)
-
-# ----- BOX AND LABELS
-box_annotator = sv.BoundingBoxAnnotator(thickness=2)
-label_annotator = sv.LabelAnnotator(text_thickness=1, text_scale=0.5)
 
 # Bind the window resize event
 window.bind("<Configure>", on_resize)
