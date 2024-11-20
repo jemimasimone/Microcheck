@@ -1,12 +1,10 @@
 from pathlib import Path
-from tkinter import Tk, Canvas, Button, Frame, BOTH, filedialog, messagebox
+from tkinter import Tk, Canvas, Button, Frame, BOTH, filedialog, messagebox, ttk, Label
 from PIL import Image, ImageTk
 import numpy as np
-import supervision as sv
 import torch
 import torchvision.transforms as transforms
 from Pytorch_UNet.unet import UNet
-import sys
 import os
 import datetime
 import cv2
@@ -24,7 +22,7 @@ def relative_to_assets(path: str) -> Path:
 
 # ----- CALL YOUR MODEL
 model = UNet(n_channels=3, n_classes=1)
-model.load_state_dict(torch.load("unet_tuning_epoch_30.pth", map_location=torch.device('cpu')))
+model.load_state_dict(torch.load("unet_tuning_epoch_30.pth", map_location=torch.device('cpu'), weights_only=True))
 model.eval()
 
 # ----- RESPONSIVE IMAGES DEPENDING ON CANVAS
@@ -39,59 +37,6 @@ def resize_images(new_width):
     resized_image_2 = original_button_image_2.resize((new_width, new_height_2), Image.Resampling.LANCZOS)
     
     return ImageTk.PhotoImage(resized_image_1), ImageTk.PhotoImage(resized_image_2)
-
-# ----- RESIZE IMAGES UPOAN UPLOAD
-def on_resize(event):
-    if event.widget == window:
-        # Button images
-        new_width = max(100, window.winfo_width() // 8)
-        resized_image_1, resized_image_2 = resize_images(new_width)
-        
-        button_1.configure(image=resized_image_1)
-        button_1.image = resized_image_1
-        button_2.configure(image=resized_image_2)
-        button_2.image = resized_image_2
-        
-        # Redraw uploaded image
-        try:
-            if not any(main_content.uploaded_images):
-                return  # No image to redraw
-            
-            # Get the uploaded image
-            img, photo = main_content.uploaded_images[0]
-            
-            # Clear existing images on the canvas
-            main_content.delete("all")
-            
-            # Canvas dimensions
-            canvas_width = main_content.winfo_width()
-            canvas_height = main_content.winfo_height()
-            
-            # Parameters for image placement
-            margin = 10
-            max_width = canvas_width - 2 * margin
-            max_height = canvas_height - 2 * margin
-            
-            # Resize the image if necessary
-            img_resized = img.copy()
-            img_resized.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
-            
-            # Update the PhotoImage
-            photo_resized = ImageTk.PhotoImage(img_resized)
-            
-            # Calculate position (centered)
-            x_position = canvas_width // 2
-            y_position = canvas_height // 2
-            
-            # Place the image on the canvas
-            main_content.create_image(x_position, y_position, image=photo_resized)
-            
-            # Update the reference to prevent garbage collection
-            main_content.uploaded_images[0] = (img_resized, photo_resized)
-        
-        except AttributeError:
-            # No images uploaded yet
-            pass
 
 # ----- UPLOAD IMAGES
 def upload_images():
@@ -114,27 +59,27 @@ def upload_images():
     
     # Parameters for image placement
     margin = 10
-    num_images = 1
-    max_width = (canvas_width - (num_images + 1) * margin) // num_images
+    max_width = (canvas_width - 3 * margin) // 2 #Dividing the space for side by side images
     max_height = canvas_height - 2 * margin
     
     try:
-
-        # Calculate position (centered)
-        x_position = canvas_width // 2
-        y_position = canvas_height // 2
-
         # Open the image using PIL
         img = Image.open(file_path)
-        image_filename = os.path.splitext(os.path.basename(file_path))[0]
         img.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
+
+        # photo_original = ImageTk.PhotoImage(img)
+        # original_x = canvas_width //4*3
+        # main_content.create_image(original_x, canvas_height//2, image=photo_original)
+
+        photo_original = ImageTk.PhotoImage(img.resize((400, 400), Image.Resampling.LANCZOS))  # Resize to 400x400
+        original_x = canvas_width // 4 * 3 + 20
+        main_content.create_image(original_x, canvas_height // 2, image=photo_original)
 
 
         # ----- PROCESS FOR U-NET
-        preprocess = transforms.Compose([
+        preprocess = transforms.Compose([ 
             transforms.Resize((700, 700)),
             transforms.ToTensor(),
-            # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # If your model was trained with this normalization
         ])
         
         img_tensor = preprocess(img).unsqueeze(0)  # Add batch dimension
@@ -145,42 +90,92 @@ def upload_images():
         
         # Apply sigmoid to get confidence levels as probabilities
         confidence_levels = torch.sigmoid(outputs)
-
         confidence_map = confidence_levels.cpu().numpy().squeeze()
-        cmap = cm.get_cmap('viridis')
+
+        cmap = plt.colormaps['viridis']
         colored = cmap(confidence_map)
+        
+        # Save the processed output as a temporary image file
+        plt.imsave('temp_processed.png', colored)
+        processed_img = Image.open('temp_processed.png')
+        
+        # # Resize the processed image to fit within the same max width/height
+        # processed_img.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
+        # photo_processed = ImageTk.PhotoImage(processed_img)
 
-        mean_confidence_levels = confidence_levels.mean(dim=[1, 2, 3]).cpu().numpy()
+        # Resize the processed image explicitly to 400x400
+        processed_img = processed_img.resize((400, 400), Image.Resampling.LANCZOS)
+        photo_processed = ImageTk.PhotoImage(processed_img)
+        
+        # Position for the processed image (left side of the canvas)
+        processed_x = canvas_width // 4 - 20  # Place processed image at 1/4 width on left side
+        main_content.create_image(processed_x, canvas_height // 2, image=photo_processed)
 
-        for i, mean_confidence in enumerate(mean_confidence_levels):
-            percentage_confidence = mean_confidence * 100
-            annotation_text = f'Mean Confidence Level: {percentage_confidence:.2f}%'
+        # # Confidence level vertical bar
+        # bar_width = 10
+        # confidence_bar_x = canvas_width // 8  # Left side of the processed image
+        # main_content.create_line(confidence_bar_x, 0, confidence_bar_x, canvas_height, width=bar_width, fill="yellow")
 
-        # Create a figure and axis
-        fig, ax = plt.subplots()
+        def create_colorbar(canvas_height, processed_x):
+            # Create a Matplotlib figure
+            fig, ax = plt.subplots(figsize=(1, 5))  # 1 unit wide, 5 units tall
+            cmap = plt.colormaps['viridis']  # Use the same colormap as the output
 
-        # Display the image with the colorbar
-        im = ax.imshow(colored)
-        cbar = ax.figure.colorbar(im, ax=ax)
+            # Create a colorbar
+            norm = plt.Normalize(vmin=0, vmax=1)  # Normalized from 0 to 1
+            sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+            sm.set_array([])
 
-        # Set the title
-        ax.set_title(f'Confidence Map of Image {image_filename}\n{annotation_text}')
+            # Add the colorbar to the figure
+            cbar = fig.colorbar(sm, cax=ax, orientation='vertical')
 
-        # Convert the Matplotlib figure to a PIL Image
-        plt.savefig('temp.png')
-        conf_pil = Image.open('temp.png')
-        plt.close()
+            # Save the colorbar as a temporary image
+            colorbar_path = "temp_colorbar.png"
+            plt.savefig(colorbar_path, bbox_inches='tight', pad_inches=0, transparent=True)
+            plt.close(fig)
 
-        # Convert the PIL Image to a Tkinter PhotoImage
-        conf_tk = ImageTk.PhotoImage(conf_pil)
+            # Load the colorbar image
+            colorbar_image = Image.open(colorbar_path)
 
-        main_content.create_image(x_position, y_position, image=conf_tk)
-        main_content.uploaded_images = [(conf_pil, conf_tk)]
+            # Resize the colorbar to 400 pixels in height and a narrower width
+            new_height = 400  # Fixed height
+            new_width = 50  # Narrower width
+            colorbar_image = colorbar_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
+            # Convert to PhotoImage for Tkinter
+            colorbar_photo = ImageTk.PhotoImage(colorbar_image)
+
+            # Display the colorbar on the canvas
+            colorbar_x = processed_x - 470  # Position to the left of the processed image
+            main_content.create_image(colorbar_x, canvas_height // 2, image=colorbar_photo)
+
+            # Keep a reference to prevent garbage collection
+            main_content.colorbar_photo = colorbar_photo
+
+
+
+
+        # Generate and display the confidence colorbar
+        create_colorbar(canvas_height, canvas_width)
+
+        # Interpretation
+        confidence_value = np.mean(confidence_map) * 100  # Calculate average confidence level in percentage
+        interpretation = f"Confidence: {confidence_value:.2f}%\nDetected Microplastics: {'Pellet, Fiber, Fragment'}\nAccuracy Level: High"
+        
+        title = Label(main_content, text="Microcheck", font=("IstokWeb Bold", 16), bg="#004e66", fg="white")
+        title.place(relx=0.5, rely=0.05, anchor="center")
+        
+        subheader = Label(main_content, text=os.path.basename(file_path), font=("IstokWeb Bold", 12), bg="#004e66", fg="white")
+        subheader.place(relx=0.5, rely=0.1, anchor="center")
+        
+        interpretation_label = Label(main_content, text=interpretation, font=("IstokWeb Bold", 10), bg="#004e66", fg="white")
+        interpretation_label.place(relx=0.5, rely=0.9, anchor="center")
+
+        # Keep references to prevent garbage collection
+        main_content.uploaded_images = [(img, photo_original), (processed_img, photo_processed)]
 
     except Exception as e:
         messagebox.showerror("Error", f"Failed to load image:\n{os.path.basename(file_path)}\n\n{e}")
-
 
 # ----- SAVE IMAGE OUTPUT
 def save_image():
@@ -195,7 +190,7 @@ def save_image():
         # Open a save dialog
         save_path = filedialog.asksaveasfilename(
             defaultextension=".png",
-            filetypes=[
+            filetypes=[ 
                 ("PNG files", "*.png"),
                 ("JPEG files", "*.jpg;*.jpeg"),
                 ("GIF files", "*.gif"),
@@ -220,9 +215,9 @@ def save_image():
 # Initialize main window
 window = Tk()
 window.title("MicroCheck")
-window.geometry("750x750")
+window.geometry("950x750")
 window.configure(bg="#FFFFFF")
-window.resizable(True, True)
+window.resizable(False, False)
 
 # Create a main frame
 main_frame = Frame(window, bg="#FFFFFF")
@@ -276,8 +271,7 @@ button_1 = Button(
     activebackground="#002733"
 )
 
-button_1.image = button_image_1_resized
-button_1.grid(row=0, column=0, padx=20, pady=10, sticky="nsew")
+button_1.grid(row=0, column=0, padx=10, pady=10)
 
 # Create "Save" Button
 button_2 = Button(
@@ -285,44 +279,17 @@ button_2 = Button(
     image=button_image_2_resized,
     text="Save",
     compound="center",
-    fg="#000000",      
-    font=("IstokWeb Bold", 12), 
+    fg="#000000",
+    font=("IstokWeb Bold", 12),
     borderwidth=0,
     highlightthickness=0,
-    command=save_image,  #Action once clicked
+    command=save_image,
     relief="flat",
-    bg="#002733",             
-    activebackground="#002733" 
+    bg="#002733",              
+    activebackground="#002733"
 )
 
-button_2.image = button_image_2_resized  
-button_2.grid(row=0, column=1, padx=20, pady=10, sticky="nsew")
+button_2.grid(row=0, column=1, padx=10, pady=10)
 
-canvas_width = main_content.winfo_width()
-canvas_height = main_content.winfo_height()
-
-# ----- DETECTION ZONES
-zone_polygon = np.array([
-    [0, 0],
-    [canvas_width, 0],
-    [canvas_width, canvas_height],
-    [0, canvas_height]
-], dtype=int)
-
-zone = sv.PolygonZone(polygon=zone_polygon)
-zone_annotator = sv.PolygonZoneAnnotator(
-    zone=zone,
-    color=sv.Color.BLUE,
-    text_scale=0,
-    text_thickness=0,
-    thickness=0
-)
-
-# ----- BOX AND LABELS
-box_annotator = sv.BoundingBoxAnnotator(thickness=2)
-label_annotator = sv.LabelAnnotator(text_thickness=1, text_scale=0.5)
-
-# Bind the window resize event
-window.bind("<Configure>", on_resize)
-
+# Start the Tkinter event loop
 window.mainloop()
